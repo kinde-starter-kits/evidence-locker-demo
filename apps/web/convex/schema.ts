@@ -54,5 +54,20 @@ export default defineSchema({
   })
     .index('by_org', ['orgCode'])
     .index('by_org_seq', ['orgCode', 'seq'])
+    .index('by_org_correlation', ['orgCode', 'correlationId']),
+
+  // The live operational stream the P7 UI reads. Distinct from activityLog
+  // (broken-mode audit, P5) and provenance (authority rows, P6). Written by the
+  // unauthenticated ingest endpoint for now (P6 wraps it with the component).
+  runEvents: defineTable({
+    orgCode: v.string(),
+    correlationId: v.string(), // the Mastra run/trace id for the run
+    seq: v.number(), // per-run monotonic, server-assigned
+    ts: v.number(),
+    agentId: v.string(),
+    type: v.string(),
+    payload: v.any()
+  })
+    .index('by_org', ['orgCode'])
     .index('by_org_correlation', ['orgCode', 'correlationId'])
 });

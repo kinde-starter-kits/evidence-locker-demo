@@ -14,7 +14,12 @@
   },
   "dependencies": {
     "@evidence-locker/api-client": "*",
-    "@mastra/core": "^1.55.0"
+    "@mastra/core": "1.55.0",
+    "@mastra/langfuse": "1.4.6",
+    "@mastra/observability": "1.16.3",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-base": "^2.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

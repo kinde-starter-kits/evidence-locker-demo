@@ -45,3 +45,34 @@ boundary gate only.
 5. `npm test` — vitest runs one placeholder test.
 6. `npx convex codegen` freshness — `git diff --exit-code` on
    `apps/web/convex/_generated`.
+
+## P4 — Mastra graph + Convex event stream + Langfuse tracing
+
+### Pinned versions (from live npm)
+
+- `@mastra/core` — **1.55.0** (exact)
+- `@mastra/langfuse` — **1.4.6** (exact)
+- Supporting (to satisfy `@mastra/langfuse` peers): `@mastra/observability` 1.16.3,
+  `@opentelemetry/api` ^1.9.0, `@opentelemetry/sdk-trace-base` ^2.0.1, `zod` ^4.4.3.
+
+### What landed
+
+- **packages/agents** — `runLockerGraph()` builds a Mastra `Workflow` of three
+  steps (intake → review → disposition), run via Mastra's real runtime. The
+  workflow `runId` is the `correlationId`, stamped on every emitted event, so the
+  Langfuse trace and the Convex events share one id. Langfuse is wired under
+  `observability.configs.langfuse` with `LangfuseExporter({ ..., realtime: true })`,
+  built ONLY when `LANGFUSE_PUBLIC_KEY`/`SECRET_KEY` are present — tracing is
+  optional, no keys ⇒ no exporter, no crash. Deterministic default (no LLM key);
+  optional BYOK reasoner for the review step falls back to deterministic on ANY
+  error. Still zero convex/apps-web imports — events go out via the api-client only.
+- **packages/api-client** — added `recordEvent(event)` (real HTTP POST with bearer
+  + delegation to `/agent/events`).
+- **apps/web/convex** — new `runEvents` table (indexes `by_org`,
+  `by_org_correlation`), `runEvents.ingest` (server-assigns monotonic `seq`,
+  writes under the given orgCode only) + `runEvents.listRunEvents`, and an HTTP
+  ingest endpoint `POST /agent/events` in `http.ts` (unauthenticated for now —
+  P6 wraps it).
+
+Live Langfuse traces need `LANGFUSE_*` keys in `packages/agents/.env.local`,
+verified in the Langfuse dashboard.

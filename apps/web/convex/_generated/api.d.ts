@@ -9,8 +9,10 @@
  */
 
 import type * as activityLog from "../activityLog.js";
+import type * as http from "../http.js";
 import type * as provenance from "../provenance.js";
 import type * as records from "../records.js";
+import type * as runEvents from "../runEvents.js";
 import type * as seed from "../seed.js";
 
 import type {
@@ -21,8 +23,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   activityLog: typeof activityLog;
+  http: typeof http;
   provenance: typeof provenance;
   records: typeof records;
+  runEvents: typeof runEvents;
   seed: typeof seed;
 }>;
 
