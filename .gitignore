@@ -23,3 +23,24 @@ coverage/
 
 # ---------------------------------------------------------------------
 # Add specific rules here…
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Next.js build output
+.next/
+out/
+
+# Convex local (anonymous) deployment state — never commit
+.convex/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Pack tarballs are build temp — but KEEP the vendored auth component
+*.tgz
+!vendor/*.tgz
+
+# NOTE: apps/web/convex/_generated is intentionally NOT ignored — it is committed.

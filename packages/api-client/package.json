@@ -1,0 +1,18 @@
+{
+  "name": "@evidence-locker/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The only path agents use to reach the app: HTTP + bearer token. Stubbed for P0.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

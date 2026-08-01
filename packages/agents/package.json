@@ -1,0 +1,22 @@
+{
+  "name": "@evidence-locker/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mastra agents. Reaches the app ONLY through @evidence-locker/api-client — never Convex or apps/web.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@evidence-locker/api-client": "*",
+    "@mastra/core": "^1.55.0"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}
