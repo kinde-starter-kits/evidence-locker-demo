@@ -11,6 +11,7 @@
 import type * as activityLog from "../activityLog.js";
 import type * as provenance from "../provenance.js";
 import type * as records from "../records.js";
+import type * as seed from "../seed.js";
 
 import type {
   ApiFromModules,
@@ -22,6 +23,7 @@ declare const fullApi: ApiFromModules<{
   activityLog: typeof activityLog;
   provenance: typeof provenance;
   records: typeof records;
+  seed: typeof seed;
 }>;
 
 /**
