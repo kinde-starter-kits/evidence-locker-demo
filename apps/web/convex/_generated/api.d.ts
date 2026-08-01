@@ -8,7 +8,9 @@
  * @module
  */
 
-import type * as evidence from "../evidence.js";
+import type * as activityLog from "../activityLog.js";
+import type * as provenance from "../provenance.js";
+import type * as records from "../records.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  evidence: typeof evidence;
+  activityLog: typeof activityLog;
+  provenance: typeof provenance;
+  records: typeof records;
 }>;
 
 /**
