@@ -8,6 +8,8 @@
 
 import {createLockerClient, type LockerClient} from '@evidence-locker/api-client';
 
+export * from './identity';
+
 export interface AgentCredentials {
   agentToken: string;
   delegation: string;
