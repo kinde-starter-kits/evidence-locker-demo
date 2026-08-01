@@ -1,0 +1,29 @@
+{
+  "name": "evidence-locker-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence Locker demo — npm workspaces monorepo (Next.js + Convex app, Mastra agents, api-client).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "vitest run",
+    "boundary-check": "node scripts/check-boundaries.mjs",
+    "codegen": "npm --workspace @evidence-locker/web run codegen"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
+    "globals": "^17.0.0",
+    "prettier": "^3.9.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.0"
+  }
+}
