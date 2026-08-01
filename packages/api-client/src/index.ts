@@ -17,9 +17,22 @@ export interface EvidenceSummary {
   createdAt: number;
 }
 
+// A single run event emitted by an agent. Agents reach the app ONLY over HTTP,
+// and this is the shape they POST to the app's ingest endpoint. `seq` and `ts`
+// are assigned server-side, so they are not part of the input.
+export interface RunEventInput {
+  orgCode: string;
+  correlationId: string;
+  agentId: string;
+  type: string;
+  payload: unknown;
+}
+
 export interface LockerClient {
   listEvidence(): Promise<EvidenceSummary[]>;
   getEvidence(id: string): Promise<EvidenceSummary>;
+  /** POST a single run event to the app's ingest endpoint. */
+  recordEvent(event: RunEventInput): Promise<void>;
 }
 
 class StubLockerClient implements LockerClient {
@@ -31,6 +44,27 @@ class StubLockerClient implements LockerClient {
 
   getEvidence(_id: string): Promise<EvidenceSummary> {
     return Promise.reject(this.notImplemented('getEvidence'));
+  }
+
+  // Real HTTP: POST the event to the app's ingest endpoint with the agent's
+  // bearer token and delegation. This is the only channel agents have to the app.
+  async recordEvent(event: RunEventInput): Promise<void> {
+    const {baseUrl, agentToken, delegation} = this.options;
+    if (baseUrl === undefined || baseUrl.length === 0) {
+      throw new Error('recordEvent: `baseUrl` is required to reach the app over HTTP.');
+    }
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/agent/events`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${agentToken}`,
+        'x-delegation': delegation
+      },
+      body: JSON.stringify(event)
+    });
+    if (!response.ok) {
+      throw new Error(`recordEvent: ingest failed with ${response.status}`);
+    }
   }
 
   private notImplemented(method: string): Error {
