@@ -9,6 +9,8 @@
  */
 
 import type * as activityLog from "../activityLog.js";
+import type * as agentActions from "../agentActions.js";
+import type * as authzMode from "../authzMode.js";
 import type * as http from "../http.js";
 import type * as provenance from "../provenance.js";
 import type * as records from "../records.js";
@@ -23,6 +25,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   activityLog: typeof activityLog;
+  agentActions: typeof agentActions;
+  authzMode: typeof authzMode;
   http: typeof http;
   provenance: typeof provenance;
   records: typeof records;

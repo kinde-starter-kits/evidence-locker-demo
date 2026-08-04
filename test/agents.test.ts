@@ -5,8 +5,13 @@ import {ROLE_SCOPES, ROLE_TO_AGENT, type RoleName} from '../apps/web/app/lib/aut
 describe('role -> permission expectations', () => {
   it('the intended scope sets for Analyst, Reviewer, Custodian', () => {
     expect(ROLE_SCOPES.Analyst).toEqual(['records:read', 'records:create']);
-    expect(ROLE_SCOPES.Reviewer).toEqual(['records:read', 'records:redact']);
-    expect(ROLE_SCOPES.Custodian).toEqual(['records:read', 'records:dispose']);
+    expect(ROLE_SCOPES.Reviewer).toEqual(['records:read', 'records:annotate']);
+    expect(ROLE_SCOPES.Custodian).toEqual([
+      'records:read',
+      'records:redact',
+      'records:export',
+      'records:delete'
+    ]);
   });
 
   it('each human role scope set matches the agent that acts for it', () => {

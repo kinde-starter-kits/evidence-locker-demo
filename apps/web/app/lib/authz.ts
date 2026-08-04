@@ -15,8 +15,8 @@ export type AgentId = 'intake' | 'review' | 'disposition';
 
 export const ROLE_SCOPES: Record<RoleName, readonly string[]> = {
   Analyst: ['records:read', 'records:create'],
-  Reviewer: ['records:read', 'records:redact'],
-  Custodian: ['records:read', 'records:dispose']
+  Reviewer: ['records:read', 'records:annotate'],
+  Custodian: ['records:read', 'records:redact', 'records:export', 'records:delete']
 };
 
 // Which M2M agent acts for each human role.

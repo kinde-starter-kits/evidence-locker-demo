@@ -1,6 +1,7 @@
 import {httpRouter} from 'convex/server';
 import {httpAction} from './_generated/server';
 import {internal} from './_generated/api';
+import type {Id} from './_generated/dataModel';
 
 // HTTP ingest for agent run events. Agents (packages/agents) reach the app ONLY
 // over HTTP — never by importing Convex — and this is where their events land.
@@ -43,7 +44,52 @@ const ingestRunEvents = httpAction(async (ctx, request) => {
   });
 });
 
+// HTTP action path. The agent asks the app to perform a record action. In BROKEN
+// mode the mutation performs it with no identity/scope check and writes a blind
+// activityLog row. NOTE: the mode is NEVER read from this request — not from the
+// body, a header, or a query param. It comes only from the deployment env
+// (getAuthzMode), so `mode` in the body below is deliberately never looked at.
+const performAction = httpAction(async (ctx, request) => {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response('invalid json', {status: 400});
+  }
+
+  if (typeof body !== 'object' || body === null) {
+    return new Response('invalid body', {status: 400});
+  }
+
+  const {orgCode, actorAgentId, action, recordId, title, kind} = body as Record<string, unknown>;
+  if (typeof orgCode !== 'string' || typeof actorAgentId !== 'string' || typeof action !== 'string') {
+    return new Response('missing or invalid fields', {status: 400});
+  }
+
+  try {
+    const result = await ctx.runMutation(internal.agentActions.performAction, {
+      orgCode,
+      actorAgentId,
+      // Validated against the union by the mutation's arg validator.
+      action: action as 'records:create' | 'records:delete' | 'records:export' | 'records:redact' | 'records:annotate',
+      recordId: typeof recordId === 'string' ? (recordId as Id<'records'>) : undefined,
+      title: typeof title === 'string' ? title : undefined,
+      kind: typeof kind === 'string' ? kind : undefined
+    });
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: {'content-type': 'application/json'}
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ok: false, error: String(error)}), {
+      status: 400,
+      headers: {'content-type': 'application/json'}
+    });
+  }
+});
+
 const http = httpRouter();
 http.route({path: '/agent/events', method: 'POST', handler: ingestRunEvents});
+http.route({path: '/agent/actions', method: 'POST', handler: performAction});
 
 export default http;
