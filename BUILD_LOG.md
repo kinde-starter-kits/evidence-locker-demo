@@ -76,3 +76,39 @@ boundary gate only.
 
 Live Langfuse traces need `LANGFUSE_*` keys in `packages/agents/.env.local`,
 verified in the Langfuse dashboard.
+
+## P5 — Broken mode and the audit-gap repro
+
+- `AUTHZ_MODE` is read SERVER-SIDE only (`apps/web/convex/authzMode.ts`,
+  `getAuthzMode()` → `process.env.AUTHZ_MODE`), defaulting to `broken`. There is
+  no `mode` argument on any function and the HTTP handler never reads it from the
+  body/header/query, so a request cannot choose its mode.
+- Action path: `POST /agent/actions` (http.ts) → `agentActions.performAction`.
+  In broken mode it performs the action (via the shared `apply*` record helpers)
+  with **no identity check, no scope check**, and writes ONE deliberately-blind
+  `activityLog` row. Enforced mode fails closed until P6.
+- Graph: the Review agent (scopes `records:read`, `records:annotate` — NOT
+  `records:delete`) attempts `records:delete` and, in broken mode, SUCCEEDS.
+  The Disposition agent (holds `records:delete`) performs a legitimate delete for
+  contrast. Both go through `createLockerClient` over HTTP — no Convex import.
+
+### The two activityLog rows, side by side (captured from the repro)
+
+```
+Review  (UNAUTHORIZED — has no records:delete):
+  { orgCode:"orgA", actorAgentId:"review",      action:"records:delete",
+    resourceType:"records", resourceId:"…0000records", ts:1785847788516 }
+
+Disposition (LEGITIMATE — holds records:delete):
+  { orgCode:"orgA", actorAgentId:"disposition", action:"records:delete",
+    resourceType:"records", resourceId:"…0001records", ts:1785847788519 }
+```
+
+The ONLY differences are `actorAgentId` (which agent) and the incidental
+`_id`/`ts`/`resourceId`. Neither row carries `decision`, `scopes`,
+`effectiveScopes`, `delegationId`, `authorityRootKind`, or any other authority
+field. Strip `actorAgentId` and the two rows are byte-identical
+(`{orgCode:"orgA", action:"records:delete", resourceType:"records"}`). Given only
+`activityLog`, you cannot tell the unauthorized delete from the authorized one —
+which is exactly the failure this demo exists to fix (P6 adds the authority-bearing
+`provenance` rows via the Kinde agent-auth component).

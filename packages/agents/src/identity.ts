@@ -27,12 +27,12 @@ export const AGENTS: Record<AgentId, AgentConfig> = {
   review: {
     envClientId: 'REVIEW_CLIENT_ID',
     envClientSecret: 'REVIEW_CLIENT_SECRET',
-    expectedScopes: ['records:read', 'records:redact']
+    expectedScopes: ['records:read', 'records:annotate']
   },
   disposition: {
     envClientId: 'DISPOSITION_CLIENT_ID',
     envClientSecret: 'DISPOSITION_CLIENT_SECRET',
-    expectedScopes: ['records:read', 'records:dispose']
+    expectedScopes: ['records:read', 'records:redact', 'records:export', 'records:delete']
   }
 };
 

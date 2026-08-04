@@ -14,12 +14,22 @@ const TARGET_REF = 'nw-001';
 const TARGET_TITLE = 'Case file: Northwind acquisition';
 const TARGET_KIND = 'case-file';
 
-// The graph only needs to emit events; it takes anything that can record one.
-export type EventSink = Pick<LockerClient, 'recordEvent'>;
+// The graph emits events and, when a delete is attempted, performs an action.
+// performAction is optional so event-only runs (P4) can pass a lighter client.
+export type EventSink = Pick<LockerClient, 'recordEvent'> & Partial<Pick<LockerClient, 'performAction'>>;
+
+// Which record ids the agents should attempt to delete on this run. Used by the
+// P5 broken-mode repro: Review (no delete scope) attempts an unauthorized delete;
+// Disposition performs a legitimate one.
+export interface DeleteAttempts {
+  reviewDeletesRecordId?: string;
+  dispositionDeletesRecordId?: string;
+}
 
 export interface RunLockerGraphOptions {
   orgCode: string;
   client: EventSink;
+  attempts?: DeleteAttempts;
   /**
    * Optional BYOK reasoner for the review step. If provided and it succeeds, its
    * text becomes the annotation; ANY error (or no reasoner) falls back to the
@@ -109,7 +119,7 @@ async function annotate(
  * correlationId plus the ordered events it emitted.
  */
 export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLockerGraphResult> {
-  const {orgCode, client, reasoner} = opts;
+  const {orgCode, client, reasoner, attempts} = opts;
   const events: RunEventInput[] = [];
 
   const ctxSchema = z.object({orgCode: z.string(), correlationId: z.string()});
@@ -118,6 +128,22 @@ export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLo
     const event: RunEventInput = {orgCode, correlationId, agentId, type, payload};
     events.push(event);
     await client.recordEvent(event);
+  }
+
+  // An agent asks the app to delete a record over HTTP (never touching Convex).
+  // Whether that agent is ALLOWED to is the app's business — in broken mode it
+  // isn't checked, which is exactly what the repro exposes.
+  async function attemptDelete(correlationId: string, agentId: AgentId, recordId: string): Promise<void> {
+    await emit(correlationId, agentId, 'record.delete.attempt', {recordId});
+    if (client.performAction) {
+      const result = await client.performAction({
+        orgCode,
+        actorAgentId: agentId,
+        action: 'records:delete',
+        recordId
+      });
+      await emit(correlationId, agentId, 'record.deleted', {recordId, ok: result.ok});
+    }
   }
 
   const intakeStep = createStep({
@@ -143,6 +169,11 @@ export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLo
       await emit(inputData.correlationId, 'review', 'agent.started', {});
       const annotation = await annotate({title: TARGET_TITLE, kind: TARGET_KIND}, reasoner);
       await emit(inputData.correlationId, 'review', 'record.reviewed', {ref: TARGET_REF, annotation});
+      // Review's scopes are records:read + records:annotate — NOT records:delete.
+      // In broken mode this unauthorized delete still succeeds.
+      if (attempts?.reviewDeletesRecordId !== undefined) {
+        await attemptDelete(inputData.correlationId, 'review', attempts.reviewDeletesRecordId);
+      }
       return inputData;
     }
   });
@@ -155,6 +186,11 @@ export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLo
       await emit(inputData.correlationId, 'disposition', 'agent.started', {});
       await emit(inputData.correlationId, 'disposition', 'record.redacted', {ref: TARGET_REF});
       await emit(inputData.correlationId, 'disposition', 'record.exported', {ref: TARGET_REF, format: 'pdf'});
+      // Disposition holds records:delete — this delete is legitimate. In broken
+      // mode it looks IDENTICAL to Review's unauthorized one in activityLog.
+      if (attempts?.dispositionDeletesRecordId !== undefined) {
+        await attemptDelete(inputData.correlationId, 'disposition', attempts.dispositionDeletesRecordId);
+      }
       return inputData;
     }
   });

@@ -28,11 +28,38 @@ export interface RunEventInput {
   payload: unknown;
 }
 
+export type RecordAction =
+  | 'records:create'
+  | 'records:delete'
+  | 'records:export'
+  | 'records:redact'
+  | 'records:annotate';
+
+// What the agent asks the app to do to a record. The agent NEVER states its
+// authorization here — in broken mode the app checks nothing; in enforced mode
+// (P6) the app derives authority from the verified token/delegation, not this body.
+export interface ActionRequest {
+  orgCode: string;
+  actorAgentId: string;
+  action: RecordAction;
+  recordId?: string;
+  title?: string;
+  kind?: string;
+}
+
+export interface ActionResult {
+  ok: boolean;
+  action: RecordAction;
+  resourceId: string;
+}
+
 export interface LockerClient {
   listEvidence(): Promise<EvidenceSummary[]>;
   getEvidence(id: string): Promise<EvidenceSummary>;
   /** POST a single run event to the app's ingest endpoint. */
   recordEvent(event: RunEventInput): Promise<void>;
+  /** Ask the app to perform a record action (the action path). */
+  performAction(input: ActionRequest): Promise<ActionResult>;
 }
 
 class StubLockerClient implements LockerClient {
@@ -65,6 +92,29 @@ class StubLockerClient implements LockerClient {
     if (!response.ok) {
       throw new Error(`recordEvent: ingest failed with ${response.status}`);
     }
+  }
+
+  // Real HTTP: POST the action to the app's action endpoint. The app decides what
+  // to do based on its mode (broken vs enforced) — never on anything the agent
+  // claims about its own authority.
+  async performAction(input: ActionRequest): Promise<ActionResult> {
+    const {baseUrl, agentToken, delegation} = this.options;
+    if (baseUrl === undefined || baseUrl.length === 0) {
+      throw new Error('performAction: `baseUrl` is required to reach the app over HTTP.');
+    }
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/agent/actions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${agentToken}`,
+        'x-delegation': delegation
+      },
+      body: JSON.stringify(input)
+    });
+    if (!response.ok) {
+      throw new Error(`performAction: request failed with ${response.status}`);
+    }
+    return (await response.json()) as ActionResult;
   }
 
   private notImplemented(method: string): Error {
