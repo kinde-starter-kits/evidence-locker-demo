@@ -2,6 +2,7 @@ import {httpRouter} from 'convex/server';
 import {httpAction} from './_generated/server';
 import {internal} from './_generated/api';
 import type {Id} from './_generated/dataModel';
+import {getAuthzMode} from './authzMode';
 
 // HTTP ingest for agent run events. Agents (packages/agents) reach the app ONLY
 // over HTTP — never by importing Convex — and this is where their events land.
@@ -61,28 +62,37 @@ const performAction = httpAction(async (ctx, request) => {
     return new Response('invalid body', {status: 400});
   }
 
-  const {orgCode, actorAgentId, action, recordId, title, kind} = body as Record<string, unknown>;
+  const {orgCode, actorAgentId, action, recordId, title, kind, correlationId} = body as Record<string, unknown>;
   if (typeof orgCode !== 'string' || typeof actorAgentId !== 'string' || typeof action !== 'string') {
     return new Response('missing or invalid fields', {status: 400});
   }
 
+  // The agent's bearer token comes from the Authorization header (enforced mode
+  // verifies it). It is NEVER read from the body.
+  const authHeader = request.headers.get('authorization') ?? '';
+  const token = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : undefined;
+
   try {
-    const result = await ctx.runMutation(internal.agentActions.performAction, {
+    const result = await ctx.runAction(internal.agentActions.performAction, {
       orgCode,
       actorAgentId,
-      // Validated against the union by the mutation's arg validator.
       action: action as 'records:create' | 'records:delete' | 'records:export' | 'records:redact' | 'records:annotate',
       recordId: typeof recordId === 'string' ? (recordId as Id<'records'>) : undefined,
       title: typeof title === 'string' ? title : undefined,
-      kind: typeof kind === 'string' ? kind : undefined
+      kind: typeof kind === 'string' ? kind : undefined,
+      correlationId: typeof correlationId === 'string' ? correlationId : undefined,
+      token
     });
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: {'content-type': 'application/json'}
     });
   } catch (error) {
+    // In enforced mode a thrown error means token verification failed → 401.
+    // In broken mode it is a bad request → 400. (A DENY is not thrown — it returns 200.)
+    const status = getAuthzMode() === 'enforced' ? 401 : 400;
     return new Response(JSON.stringify({ok: false, error: String(error)}), {
-      status: 400,
+      status,
       headers: {'content-type': 'application/json'}
     });
   }

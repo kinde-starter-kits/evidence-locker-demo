@@ -112,3 +112,65 @@ field. Strip `actorAgentId` and the two rows are byte-identical
 `activityLog`, you cannot tell the unauthorized delete from the authorized one —
 which is exactly the failure this demo exists to fix (P6 adds the authority-bearing
 `provenance` rows via the Kinde agent-auth component).
+
+## P6 — Enforced mode: authority record per action, over-scoped delete denied
+
+- Vendored component wired: `convex/convex.config.ts` (`defineApp` + `app.use(agentAuth,…)`
+  passing `KINDE_DOMAIN`/`KINDE_AUDIENCE`/`DELEGATION_SIGNING_SECRET`),
+  `convex/agentAuth.ts` (`new AgentAuth(components.agentAuth)` + admin-only INTERNAL
+  wrappers `registerAgent`/`startInstance`/`revokeAgent`). Codegen now includes the
+  component.
+- Enforced action path (`convex/agentActions.ts`, `performAction` internalAction):
+  verify token (`verifyCaller`, throws on invalid → 401) → `startInstance`
+  (runId = `${correlationId}:${agentId}`, unique per agent in a run) →
+  `authorize(ctx, token, {instanceId, action, enforceTokenScopes:true, requireOrgCode:true})`
+  → commit: apply via shared `apply*` helper on allow, then write ONE provenance
+  row (allow OR deny). A deny is `decision.allowed === false` (returned, recorded —
+  not thrown). Broken mode still writes the blind `activityLog` row.
+- Provenance is OUR hash-chained authority record, built from `{caller, decision}`;
+  the component keeps its OWN `audit` store. `rowHash = SHA-256( JCS(rowBody) + prevHash )`
+  via `canonicalize` (RFC 8785, never JSON.stringify); genesis prevHash = 64 zeros;
+  `seq`/`prevHash` read from the last row in the same mutation. `verifyChain({orgCode})`
+  recomputes and reports the first break.
+
+### An allow row and a deny row, side by side (captured; contrast P5)
+
+```
+DENY  (Review — over-scoped delete, records:delete NOT granted):
+  seq:0  decision:"deny"  action:"records:delete"
+  actorSub:"m2m_review"  authorityRootKind:"agent"
+  effectiveScopes:["records:read","records:annotate"]
+  denyReason:"insufficient_scope"  requiredScopes:["records:delete"]
+  prevHash:0000…0000   rowHash:b1ade029…4aba      → record NOT deleted
+
+ALLOW (Disposition — legitimate delete, records:delete granted):
+  seq:1  decision:"allow"  action:"records:delete"
+  actorSub:"m2m_disposition"  authorityRootKind:"agent"
+  effectiveScopes:["records:read","records:redact","records:export","records:delete"]
+  prevHash:b1ade029…4aba   rowHash:fae20fb6…7501    → record deleted
+```
+
+Unlike P5's two indistinguishable `activityLog` rows, EACH provenance row carries
+identity (`actorSub`), the decision, the effective scopes, and — on the deny — the
+`requiredScopes` it lacked. The chain links them: the deny row's `rowHash` is the
+allow row's `prevHash`.
+
+### verifyChain: pass, and tamper detected
+
+```
+clean chain      → { ok: true, length: 2 }
+after tampering  → { ok: false, brokenAtSeq: 0, reason: "row_hash_mismatch" }
+  (patched seq-0's action to "records:tampered"; recomputed rowHash no longer matches)
+```
+
+### Still needs live verification (real Kinde, my Convex dev deployment)
+
+The tests use jose-minted RS256 tokens + a stubbed JWKS — a deterministic in-process
+path that exercises real `verifyCaller`/`authorize`. What I have NOT verified live and
+must confirm against my Kinde tenant + Convex dev deployment:
+- real agent token minting (`mintAgentToken`, P2) with the three M2M apps;
+- a real `authorize()` decision over a live Kinde-issued token (JWKS from my tenant);
+- setting the Convex deployment env: `AUTHZ_MODE=enforced`, `KINDE_DOMAIN`,
+  `KINDE_AUDIENCE` (required in live mode), `DELEGATION_SIGNING_SECRET`
+  (`npx convex env set …`), and registering the three agents against their real
+  Kinde `client_id`s.
