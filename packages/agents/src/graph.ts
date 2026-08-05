@@ -140,9 +140,14 @@ export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLo
         orgCode,
         actorAgentId: agentId,
         action: 'records:delete',
+        correlationId,
         recordId
       });
-      await emit(correlationId, agentId, 'record.deleted', {recordId, ok: result.ok});
+      await emit(correlationId, agentId, 'record.deleted', {
+        recordId,
+        ok: result.ok,
+        decision: result.decision ?? null
+      });
     }
   }
 

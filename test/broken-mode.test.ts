@@ -22,10 +22,11 @@ function actor(t: Harness) {
       });
     },
     async performAction(input: ActionRequest): Promise<ActionResult> {
-      return await t.mutation(internal.agentActions.performAction, {
+      return await t.action(internal.agentActions.performAction, {
         orgCode: input.orgCode,
         actorAgentId: input.actorAgentId,
         action: input.action,
+        correlationId: input.correlationId,
         recordId: input.recordId,
         title: input.title,
         kind: input.kind
@@ -150,7 +151,8 @@ describe('P5 broken mode — the audit gap', () => {
       headers: {'content-type': 'application/json'},
       body: JSON.stringify({orgCode: 'orgA', actorAgentId: 'disposition', action: 'records:delete', recordId: target2})
     });
-    expect(res2.status).toBe(400); // enforced mode fails closed until P6
+    // Enforced fails closed here: no bearer token on this bare request → 401, nothing performed.
+    expect(res2.status).toBe(401);
     expect((await t.query(api.records.get, {orgCode: 'orgA', recordId: target2}))?.status).toBe('active');
   });
 });

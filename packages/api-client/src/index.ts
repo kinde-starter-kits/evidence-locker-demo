@@ -42,15 +42,20 @@ export interface ActionRequest {
   orgCode: string;
   actorAgentId: string;
   action: RecordAction;
+  /** The run/trace id (= the Mastra run id). Ties enforced actions to the run instance. */
+  correlationId: string;
   recordId?: string;
   title?: string;
   kind?: string;
 }
 
 export interface ActionResult {
+  /** true when the action was performed (allow / broken); false on an enforced deny. */
   ok: boolean;
   action: RecordAction;
   resourceId: string;
+  /** "allow" | "deny" in enforced mode; "performed" in broken mode. */
+  decision?: string;
 }
 
 export interface LockerClient {

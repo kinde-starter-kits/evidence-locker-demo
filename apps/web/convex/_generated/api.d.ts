@@ -10,6 +10,7 @@
 
 import type * as activityLog from "../activityLog.js";
 import type * as agentActions from "../agentActions.js";
+import type * as agentAuth from "../agentAuth.js";
 import type * as authzMode from "../authzMode.js";
 import type * as http from "../http.js";
 import type * as provenance from "../provenance.js";
@@ -26,6 +27,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   activityLog: typeof activityLog;
   agentActions: typeof agentActions;
+  agentAuth: typeof agentAuth;
   authzMode: typeof authzMode;
   http: typeof http;
   provenance: typeof provenance;
@@ -60,4 +62,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  agentAuth: import("@kinde-oss/kinde-convex-agent-auth/_generated/component.js").ComponentApi<"agentAuth">;
+};
