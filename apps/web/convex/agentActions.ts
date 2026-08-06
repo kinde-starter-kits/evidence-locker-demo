@@ -4,7 +4,6 @@ import type {Id} from './_generated/dataModel';
 import {components, internal} from './_generated/api';
 import {v} from 'convex/values';
 import type {FunctionArgs} from 'convex/server';
-import {getAuthzMode} from './authzMode';
 import {agentAuth} from './agentAuth';
 import {appendProvenanceRow} from './provenance';
 import {applyCreateRecord, applyRedactRecord, applyExportRecord, applyDeleteRecord} from './records';
@@ -160,7 +159,9 @@ export const performAction = internalAction({
     actingForSubject: v.optional(v.string())
   },
   handler: async (ctx, args): Promise<ActionOutcome> => {
-    if (getAuthzMode() === 'broken') {
+    // Mode is resolved server-side from the global setting/env — never this request.
+    const mode = await ctx.runQuery(internal.authzMode.readAuthzMode);
+    if (mode === 'broken') {
       return await ctx.runMutation(internal.agentActions.performBroken, {
         orgCode: args.orgCode,
         actorAgentId: args.actorAgentId,

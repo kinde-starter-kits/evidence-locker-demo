@@ -34,6 +34,34 @@ export const ingest = internalMutation({
   }
 });
 
+// Distinct runs for a tenant (for the replay picker), newest activity first.
+export const listRuns = query({
+  args: {orgCode: v.string()},
+  handler: async (ctx, {orgCode}) => {
+    const events = await ctx.db
+      .query('runEvents')
+      .withIndex('by_org', (q) => q.eq('orgCode', orgCode))
+      .collect();
+    const runs = new Map<string, {correlationId: string; startedAt: number; lastAt: number; count: number}>();
+    for (const event of events) {
+      const existing = runs.get(event.correlationId);
+      if (existing === undefined) {
+        runs.set(event.correlationId, {
+          correlationId: event.correlationId,
+          startedAt: event.ts,
+          lastAt: event.ts,
+          count: 1
+        });
+      } else {
+        existing.count += 1;
+        existing.startedAt = Math.min(existing.startedAt, event.ts);
+        existing.lastAt = Math.max(existing.lastAt, event.ts);
+      }
+    }
+    return Array.from(runs.values()).sort((a, b) => b.lastAt - a.lastAt);
+  }
+});
+
 // Tenant-scoped read of one run's event stream, ordered by seq.
 export const listRunEvents = query({
   args: {orgCode: v.string(), correlationId: v.string()},

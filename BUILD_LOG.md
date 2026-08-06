@@ -174,3 +174,60 @@ must confirm against my Kinde tenant + Convex dev deployment:
   `KINDE_AUDIENCE` (required in live mode), `DELEGATION_SIGNING_SECRET`
   (`npx convex env set …`), and registering the three agents against their real
   Kinde `client_id`s.
+
+## P7 — Product UI
+
+- Kinde LIGHT brand: white, ink #0f0f0f, black primary buttons, quiet gray
+  borders, restrained green (allow) / red (deny) only where meaning requires,
+  Inter (text) + Fira Code (ids/hashes/scopes), no blue, no grid. `app/globals.css`.
+- Wiring: `app/providers.tsx` ('use client') holds the Convex React client and is
+  rendered by the server layout — client providers are NOT placed in the server
+  tree directly. Client components read Convex via `useQuery` (live, no polling).
+- Mode banner reads `authzMode.getMode` (a Convex query → deployment env), so it
+  reflects the true SERVER mode, never a client toggle.
+- Panels: guest role switch (Analyst / Reviewer / Custodian, view-as with each
+  role's scopes) + real Kinde LoginLink/LogoutLink; live event stream
+  (`runEvents.listRunEvents`, grouped by correlationId); the contrast — blind
+  `activityLog` beside authority-bearing `provenance` (decision + scopes +
+  requiredScopes on deny); replay picker (`runEvents.listRuns`); and a
+  "Verify integrity" button (`provenance.verifyChain`) showing green
+  "verified, N rows" or red "broken at seq X".
+- New public queries added to existing modules: `authzMode.getMode`,
+  `runEvents.listRuns` (no new convex files, so `_generated` is unchanged).
+- Run trigger: `app/api/run/route.ts` (nodejs runtime) kicks the real Mastra graph
+  server-side; it reaches Convex ONLY over HTTP (`/agent/events`, `/agent/actions`)
+  and mints per-agent tokens when M2M creds are present (broken mode needs none).
+  `next.config.mjs` marks `@mastra/*` + the workspace packages as
+  `serverExternalPackages`. `apps/web` now depends on `@evidence-locker/agents`
+  + `@evidence-locker/api-client` (allowed — the boundary only restricts the
+  reverse). `next build` passes.
+
+### next-env.d.ts cleanup (parked since P2)
+
+Added `apps/web/next-env.d.ts` to `.gitignore`. It is still tracked, so at commit
+time run **`git rm --cached apps/web/next-env.d.ts`** to stop tracking it — after
+that, `next dev`'s rewrites no longer dirty the tree.
+
+## P7.1 — Legibility redesign + live mode toggle
+
+- Guided 3-step walkthrough: a plain-language problem statement + agent legend
+  (Intake: create; Review: read+annotate; Disposition: read+redact+export+delete);
+  Step 1 Run, Step 2 blind `activityLog`, Step 3 `provenance` + verify — with the
+  callouts. Seed is now named case files (title + status shown, agent NAMES, raw
+  subs demoted to a mono detail).
+- **Live mode toggle — design decision.** A Convex function cannot rewrite the
+  deployment env `AUTHZ_MODE` at runtime, so the toggle persists a GLOBAL override
+  in a `demoSettings` singleton (`authzMode.setMode`). `resolveAuthzMode(ctx)` reads
+  it SERVER-SIDE with precedence: persisted override → deployment env `AUTHZ_MODE`
+  → "broken". The action/HTTP layers read it via `ctx.runQuery(readAuthzMode)`.
+  This does NOT weaken the guarantee: the action path still takes NO `mode` arg and
+  never reads mode from a request — the toggle only changes the one global value
+  (the in-app equivalent of `npx convex env set AUTHZ_MODE …`), labeled "Demo
+  control — sets the server mode for everyone". The P5 "a request cannot choose its
+  mode" test still passes.
+- **Legibility:** scenario + 3-step guided stepper strip (highlights the active step
+  from mode + whether a run exists); the seed is now named legal evidence documents
+  with a `classification` field (public | confidential | privileged | pii, optional
+  so existing/created rows stay valid); stream/log/provenance reference the document
+  by TITLE + classification, agent NAME primary, raw sub demoted to mono. Schema
+  stays schema-generic, so `_generated` is unchanged.

@@ -44,3 +44,7 @@ out/
 !vendor/*.tgz
 
 # NOTE: apps/web/convex/_generated is intentionally NOT ignored — it is committed.
+
+# Next.js manages next-env.d.ts and rewrites it on every `next dev` (adds a
+# .next/types import). Stop tracking it so it doesn't re-dirty the tree.
+apps/web/next-env.d.ts
