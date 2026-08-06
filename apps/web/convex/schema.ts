@@ -4,11 +4,15 @@ import {v} from 'convex/values';
 // P1 — org-scoped tenancy. Every table carries `orgCode` and every index leads
 // with `orgCode`, so no query can cross tenants.
 export default defineSchema({
-  // The case records agents act on.
+  // The case records (legal evidence documents) agents act on.
   records: defineTable({
     orgCode: v.string(),
     title: v.string(),
-    kind: v.string(), // e.g. "case-file"
+    kind: v.string(), // e.g. "deposition-transcript"
+    // Gives the redaction angle meaning: Disposition redacts privileged/PII docs.
+    classification: v.optional(
+      v.union(v.literal('public'), v.literal('confidential'), v.literal('privileged'), v.literal('pii'))
+    ),
     status: v.union(v.literal('active'), v.literal('redacted'), v.literal('deleted')),
     createdAt: v.number() // ms epoch
   })
@@ -55,6 +59,13 @@ export default defineSchema({
     .index('by_org', ['orgCode'])
     .index('by_org_seq', ['orgCode', 'seq'])
     .index('by_org_correlation', ['orgCode', 'correlationId']),
+
+  // Demo settings singleton (one global row). Holds the persisted global AUTHZ_MODE
+  // set by the on-page demo control — read SERVER-SIDE, never from a request. The
+  // deployment env AUTHZ_MODE is the fallback when no row exists.
+  demoSettings: defineTable({
+    authzMode: v.union(v.literal('broken'), v.literal('enforced'))
+  }),
 
   // The live operational stream the P7 UI reads. Distinct from activityLog
   // (broken-mode audit, P5) and provenance (authority rows, P6). Written by the

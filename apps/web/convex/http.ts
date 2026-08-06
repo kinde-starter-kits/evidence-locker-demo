@@ -2,7 +2,6 @@ import {httpRouter} from 'convex/server';
 import {httpAction} from './_generated/server';
 import {internal} from './_generated/api';
 import type {Id} from './_generated/dataModel';
-import {getAuthzMode} from './authzMode';
 
 // HTTP ingest for agent run events. Agents (packages/agents) reach the app ONLY
 // over HTTP — never by importing Convex — and this is where their events land.
@@ -90,7 +89,8 @@ const performAction = httpAction(async (ctx, request) => {
   } catch (error) {
     // In enforced mode a thrown error means token verification failed → 401.
     // In broken mode it is a bad request → 400. (A DENY is not thrown — it returns 200.)
-    const status = getAuthzMode() === 'enforced' ? 401 : 400;
+    const mode = await ctx.runQuery(internal.authzMode.readAuthzMode);
+    const status = mode === 'enforced' ? 401 : 400;
     return new Response(JSON.stringify({ok: false, error: String(error)}), {
       status,
       headers: {'content-type': 'application/json'}

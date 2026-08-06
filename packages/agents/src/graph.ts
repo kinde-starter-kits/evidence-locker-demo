@@ -143,10 +143,12 @@ export async function runLockerGraph(opts: RunLockerGraphOptions): Promise<RunLo
         correlationId,
         recordId
       });
-      await emit(correlationId, agentId, 'record.deleted', {
+      // The event must tell the truth: a denied delete is NOT a deletion. Pull the
+      // decision through so the stream reads "record.delete.denied", not "deleted".
+      const denied = result.decision === 'deny' || result.ok === false;
+      await emit(correlationId, agentId, denied ? 'record.delete.denied' : 'record.deleted', {
         recordId,
-        ok: result.ok,
-        decision: result.decision ?? null
+        decision: result.decision ?? (denied ? 'deny' : 'allow')
       });
     }
   }

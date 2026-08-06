@@ -6,21 +6,55 @@ import {v} from 'convex/values';
 const SEED_BASE_TS = 1_735_689_600_000;
 const MINUTE = 60_000;
 
+type Classification = 'public' | 'confidential' | 'privileged' | 'pii';
+
 interface SeedRecord {
   title: string;
   kind: string;
+  classification: Classification;
   offsetMs: number;
 }
 
-// A fixed set of case records, mixed kinds, all seeded as status "active".
+// A fixed set of named (fictional) legal evidence documents, all seeded active.
+// Classification gives the redaction angle meaning: Disposition redacts
+// privileged/PII documents before export.
 const SEED_RECORDS: readonly SeedRecord[] = [
-  {title: 'Case file: Northwind acquisition', kind: 'case-file', offsetMs: 0 * MINUTE},
-  {title: 'Deposition transcript: J. Rivera', kind: 'transcript', offsetMs: 1 * MINUTE},
-  {title: 'Evidence photo: warehouse dock', kind: 'photo', offsetMs: 2 * MINUTE},
-  {title: 'Chain-of-custody log: exhibit 14', kind: 'custody-log', offsetMs: 3 * MINUTE},
-  {title: 'Contract: master services agreement', kind: 'contract', offsetMs: 4 * MINUTE},
-  {title: 'Email export: Q3 negotiations', kind: 'email-export', offsetMs: 5 * MINUTE},
-  {title: 'Case file: Contoso settlement', kind: 'case-file', offsetMs: 6 * MINUTE}
+  {
+    title: 'Halvorsen v. Meridian Logistics — deposition transcript',
+    kind: 'deposition-transcript',
+    classification: 'confidential',
+    offsetMs: 0 * MINUTE
+  },
+  {
+    title: 'Project Cormorant — internal strategy memo (privileged)',
+    kind: 'strategy-memo',
+    classification: 'privileged',
+    offsetMs: 1 * MINUTE
+  },
+  {
+    title: 'Vendor contract — Northwind Freight',
+    kind: 'contract',
+    classification: 'confidential',
+    offsetMs: 2 * MINUTE
+  },
+  {
+    title: 'Whistleblower complaint — HR intake (PII)',
+    kind: 'hr-intake',
+    classification: 'pii',
+    offsetMs: 3 * MINUTE
+  },
+  {
+    title: 'Incident report — warehouse #7',
+    kind: 'incident-report',
+    classification: 'public',
+    offsetMs: 4 * MINUTE
+  },
+  {
+    title: 'Executive email export (privileged)',
+    kind: 'email-export',
+    classification: 'privileged',
+    offsetMs: 5 * MINUTE
+  }
 ];
 
 /**
@@ -45,6 +79,7 @@ export const seedLocker = internalMutation({
         orgCode,
         title: record.title,
         kind: record.kind,
+        classification: record.classification,
         status: 'active',
         createdAt: SEED_BASE_TS + record.offsetMs
       });

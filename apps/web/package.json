@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@evidence-locker/agents": "*",
+    "@evidence-locker/api-client": "*",
     "@kinde-oss/kinde-auth-nextjs": "^2.13.0",
     "@kinde-oss/kinde-convex-agent-auth": "file:../../vendor/kinde-oss-kinde-convex-agent-auth-0.1.0.tgz",
     "canonicalize": "^2.1.0",
