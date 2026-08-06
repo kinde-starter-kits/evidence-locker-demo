@@ -231,3 +231,35 @@ that, `next dev`'s rewrites no longer dirty the tree.
   so existing/created rows stay valid); stream/log/provenance reference the document
   by TITLE + classification, agent NAME primary, raw sub demoted to mono. Schema
   stays schema-generic, so `_generated` is unchanged.
+
+## P8 — End-to-end narrative script
+
+`scripts/e2e-narrative.ts` runs the whole story off a single seed and asserts it in
+BOTH modes, fully in-process via convex-test (no deployment, no live Kinde) — using
+the same jose-minted tokens + registered-agent doubles as the P6 tests. Mode is set
+through the REAL server path (`demoSettings` via `api.authzMode.setMode` →
+`resolveAuthzMode`), never a per-request flag. It runs under vitest (convex-test
+needs Vite's `import.meta.glob`) via a dedicated `vitest.e2e.config.ts`;
+`npm run e2e` runs it and exits non-zero on any failed assertion. `npm test` is
+unchanged (7 files / 22 tests — it does not pick up the e2e script).
+
+Console output of `npm run e2e`:
+
+```
+▸ Beat 1 — Seed one org with named legal case files
+  ✓ seeded 6 case files (e.g. "Halvorsen v. Meridian Logistics — deposition transcript")
+▸ Beat 2 — BROKEN mode: run the agents
+  ✓ mode set to broken via demoSettings (server-side, not a per-request flag)
+  ✓ activityLog recorded 2 delete actions (review + disposition)
+  ✓ the two deletes are INDISTINGUISHABLE on authority — no field records who was allowed
+  ✓ provenance has NO rows in broken mode
+▸ Beat 3 — ENFORCED mode: run the agents
+  ✓ mode set to enforced via demoSettings
+  ✓ Review delete DENIED (insufficient_scope, needed records:delete) — "Vendor contract — Northwind Freight" survives
+  ✓ Disposition delete ALLOWED — record performed
+  ✓ each action wrote one provenance row (identity + effectiveScopes + decision)
+  ✓ verifyChain passes — gapless seq, rowHash chain intact
+▸ Beat 4 — TAMPER one provenance row, then re-verify
+  ✓ verifyChain now reports the break at seq 0 — tamper-evident
+NARRATIVE OK — broken mode hides the unauthorized delete; enforced denies it, records the authority, and proves the record was not tampered with.
+```
